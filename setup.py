@@ -102,15 +102,16 @@ class my_libs_install(_install):
 
 setup(
     name='PyPy-cppyy-backend',
-    version='6.10.0.0', # corresponds to ROOT 6.10.00, extra number is for packager
     description='Cling support for PyPy',
     long_description=long_description,
-
     url='http://pypy.org',
 
     # Author details
     author='PyPy Developers',
     author_email='pypy-dev@python.org',
+
+    use_scm_version=True,
+    setup_requires=['setuptools_scm'],
 
     license='LLVM: UoI-NCSA; ROOT: LGPL 2.1; Cppyy: LBNL BSD',
 
@@ -137,9 +138,6 @@ setup(
 
     packages=find_packages('src', ['backend']),
     include_package_data=True,
-
-    extras_require={
-    },
 
     cmdclass = {
         'build': my_cmake_build,
