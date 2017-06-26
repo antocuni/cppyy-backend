@@ -2,5 +2,5 @@ sudo: false
 language: python
 
 script:
-  - python create_cppyy_package.py
+  - python create_cppyy_package.py -r 6.10.00
   - ls
