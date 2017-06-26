@@ -298,19 +298,13 @@ if DEBUG_TESTBUILD:
 ## package creation
 #
 countdown = 0
-pidir = 'Package-'+args.release
-print('creating package', pidir)
-if not os.path.exists(pidir):
-    os.mkdir(pidir)
-os.chdir(pidir); countdown += 1
-
 
 print('creating src ... ROOT part')
 if not os.path.exists('src'):
     os.mkdir('src')
 os.chdir('src'); countdown += 1
 if not os.path.exists('backend'):
-    src = os.path.join(os.path.pardir, os.path.pardir, pkgdir)
+    src = os.path.join(os.path.pardir, pkgdir)
     print('now copying', src)
     shutil.copytree(src, 'backend')
 
@@ -439,7 +433,7 @@ add_dependencies(cppyy_backend CLING)
 """)
 
 # back up to pip package top
-for i in range(countdown-1):
+for i in range(countdown):
     os.chdir(os.path.pardir)
 
 # add cppyy module to cmake
