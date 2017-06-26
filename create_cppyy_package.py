@@ -184,7 +184,9 @@ os.rename(outp, inp)
 # remove afterimage and ftgl explicitly
 print('trimming externals')
 for cmf in ['AfterImage', 'FTGL']:
-    os.remove('cmake/modules/Find%s.cmake' % (cmf,))
+    fname = 'cmake/modules/Find%s.cmake' % (cmf,)
+    if os.path.exists(fname):
+        os.remove(fname)
 inp = 'cmake/modules/SearchInstalledSoftware.cmake'
 outp = inp+'.new'
 now_stripping = False
