@@ -1,0 +1,6 @@
+sudo: false
+language: python
+
+script:
+  - python create_cppyy_package.py
+  - ls
