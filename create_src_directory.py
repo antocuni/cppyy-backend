@@ -2,7 +2,7 @@
 from __future__ import print_function
 
 import os, sys
-import argparse, re, shutil, tarfile, urllib2
+import shutil, tarfile, urllib2
 
 
 DEBUG_TESTBUILD = False
@@ -30,24 +30,21 @@ ROOT_EXPLICIT_REMOVE = ['core/base/v7', 'math/mathcore/v7', 'io/io/v7']
 ERR_RELEASE_NOT_FOUND = 2
 
 
-#
-## CLI arguments
-#
-class ReleaseValidation(argparse.Action):
-    def __call__(self, parser, namespace, value, option_string=None):
-        if not re.match(r'6\.\d\d\.\d\d', value):
-            raise argparse.ArgumentTypeError(
-                "release number should of the form '6.dd.dd'")
-        setattr(namespace, self.dest, value)
-        return value
+def get_root_version():
+    import pkg_resources
+    try:
+        version = pkg_resources.get_distribution('PyPy_cppyy_backend').version
+    except pkg_resources.DistributionNotFound:
+        print('ERROR: cannot determine the version. Please run setup.py egg_info first')
+        sys.exit(1)
+    #
+    parts = version.split('.', 3)
+    major, minor, patch = map(int, parts[:3])
+    root_version = '%d.%02d.%02d' % (major, minor, patch)
+    return root_version
 
-parser = argparse.ArgumentParser(
-    description='Build PyPi package for cppyy containing the minimum of ROOT')
-parser.add_argument('-r', '--release', type=str, nargs='?',
-                    action=ReleaseValidation, help='ROOT release to use')
 
-args = parser.parse_args()
-
+ROOT_VERSION = get_root_version()
 
 #
 ## ROOT source pull and cleansing
@@ -90,62 +87,30 @@ def clean_directory(directory, keeplist, trim_cmake=True):
         print('reusing existing %s/CMakeLists.txt' % (directory,))
  
 
-class ReleaseValidation(argparse.Action):
-    def __call__(self, parser, namespace, value, option_string=None):
-        if not re.match(r'6\.\d\d\.\d\d', value):
-            raise argparse.ArgumentTypeError(
-                "release number should of the form '6.dd.dd'")
-        setattr(namespace, self.dest, value)
-        return value
-
-parser = argparse.ArgumentParser(
-    description='Build PyPi package for cppyy containing the minimum of ROOT')
-parser.add_argument('-r', '--release', type=str, nargs='?',
-                    action=ReleaseValidation, help='ROOT release to use')
-
-args = parser.parse_args()
 
 if not os.path.exists(TARBALL_CACHE_DIR):
     os.mkdir(TARBALL_CACHE_DIR)
 
-if args.release:
-  # use provided release
-    fn = 'root_v%s.source.tar.gz' % args.release
-    addr = 'https://root.cern.ch/download/'+fn
-    if not os.path.exists(os.path.join(TARBALL_CACHE_DIR, fn)):
-        try:
-            print('retrieving', fn)
-            resp = urllib2.urlopen(addr, fn)
-            out = open(os.path.join(TARBALL_CACHE_DIR, fn), 'wb')
-            out.write(resp.read())
-            out.close()
-        except urllib2.HTTPError:
-            print('release %s not found' % args.release)
-            sys.exit(ERR_RELEASE_NOT_FOUND)
-    else:
-        print('reusing', fn, 'from local directory')
+fn = 'root_v%s.source.tar.gz' % ROOT_VERSION
+addr = 'https://root.cern.ch/download/'+fn
+if not os.path.exists(os.path.join(TARBALL_CACHE_DIR, fn)):
+    try:
+        print('retrieving', fn)
+        resp = urllib2.urlopen(addr, fn)
+        out = open(os.path.join(TARBALL_CACHE_DIR, fn), 'wb')
+        out.write(resp.read())
+        out.close()
+    except urllib2.HTTPError:
+        print('release %s not found' % ROOT_VERSION)
+        sys.exit(ERR_RELEASE_NOT_FOUND)
 else:
-    print('provide release ... getting latest release is not yet implemented ...')
-    sys.exit(1)
-  # get latest and set fn, args.release, etc.
+    print('reusing', fn, 'from local directory')
 
-# construct version for package
-args.version = ''
-testnext = False
-for c in args.release:
-    if testnext:
-        testnext = False
-        if c == '0':
-            continue
-    if c == '.':
-        testnext = True
-    args.version += c
-args.version += '.0'
 
 fn = os.path.join(TARBALL_CACHE_DIR, fn)
-pkgdir = os.path.join('root-'+args.release)
+pkgdir = os.path.join('root-' + ROOT_VERSION)
 if not os.path.exists(pkgdir):
-    print('now extracting', args.release)
+    print('now extracting', ROOT_VERSION)
     tf = tarfile.TarFile.gzopen(fn)
     tf.extractall()
     tf.close()
