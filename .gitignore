@@ -1,6 +1,19 @@
 releases/
 root-*/
-src/
+src/CMakeLists.txt
+src/LICENSE
+src/Makefile
+src/build
+src/cmake
+src/config
+src/core
+src/cppyy
+src/etc
+src/interpreter
+src/io
+src/main
+src/math
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
