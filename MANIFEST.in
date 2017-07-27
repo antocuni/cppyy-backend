@@ -1,5 +1,5 @@
 # Include the license file
 include LICENSE.txt
 
-# Include the data files
+# Force-include the full source (a custom build is used)
 recursive-include src *

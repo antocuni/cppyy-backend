@@ -10,19 +10,19 @@ DEBUG_TESTBUILD = False
 TARBALL_CACHE_DIR = 'releases'
 
 ROOT_KEEP = ['build', 'cmake', 'config', 'core', 'etc', 'interpreter',
-             'io', 'LICENSE', 'net', 'Makefile', 'CMakeLists.txt', 'math',
+             'io', 'LICENSE', 'Makefile', 'CMakeLists.txt', 'math',
              'main'] # main only needed in more recent root b/c of rootcling
 ROOT_CORE_KEEP = ['CMakeLists.txt', 'base', 'clib', 'clingutils', 'cont',
                   'dictgen', 'foundation', 'lzma', 'macosx', 'meta',
                   'metacling', 'metautils', 'rootcling_stage1', 'textinput',
                   'thread', 'unix', 'utils', 'winnt', 'zip']
 ROOT_IO_KEEP = ['CMakeLists.txt', 'io', 'rootpcm']
-ROOT_NET_KEEP = ['CMakeLists.txt', 'net']
 ROOT_MATH_KEEP = ['CMakeLists.txt', 'mathcore']
 ROOT_ETC_KEEP = ['Makefile.arch', 'class.rules', 'cmake', 'dictpch',
                  'gdb-backtrace.sh', 'gitinfo.txt', 'helgrind-root.supp',
-                 'hostcert.conf', 'system.plugins-ios',
+                 'hostcert.conf', 'plugins', 'system.plugins-ios',
                  'valgrind-root-python.supp', 'valgrind-root.supp', 'vmc']
+ROOT_PLUGINS_KEEP = ['TVirtualStreamerInfo']
 
 ROOT_EXPLICIT_REMOVE = ['core/base/v7', 'math/mathcore/v7', 'io/io/v7']
 
@@ -33,7 +33,7 @@ ERR_RELEASE_NOT_FOUND = 2
 def get_root_version():
     import pkg_resources
     try:
-        version = pkg_resources.get_distribution('PyPy_cppyy_backend').version
+        version = pkg_resources.get_distribution('cppyy_backend').version
     except pkg_resources.DistributionNotFound:
         print('ERROR: cannot determine the version. Please run setup.py egg_info first')
         sys.exit(1)
@@ -87,7 +87,6 @@ def clean_directory(directory, keeplist, trim_cmake=True):
         print('reusing existing %s/CMakeLists.txt' % (directory,))
  
 
-
 if not os.path.exists(TARBALL_CACHE_DIR):
     os.mkdir(TARBALL_CACHE_DIR)
 
@@ -122,9 +121,9 @@ os.chdir(pkgdir)
 clean_directory(os.path.curdir, ROOT_KEEP)
 clean_directory('core',         ROOT_CORE_KEEP)
 clean_directory('etc',          ROOT_ETC_KEEP, trim_cmake=False)
+clean_directory('etc/plugins',  ROOT_PLUGINS_KEEP, trim_cmake=False)
 clean_directory('io',           ROOT_IO_KEEP)
 clean_directory('math',         ROOT_MATH_KEEP)
-clean_directory('net',          ROOT_NET_KEEP)
 
 
 # trim main (only need rootcling)
@@ -209,12 +208,14 @@ for line in open(inp):
 new_cml.close()
 os.rename(outp, inp)
 
+
 # some more explicit removes:
 for dir_to_remove in ROOT_EXPLICIT_REMOVE:
     try:
         shutil.rmtree(dir_to_remove)
     except OSError:
         pass
+
 
 # special fixes
 inp = 'core/base/src/TVirtualPad.cxx'
@@ -228,6 +229,36 @@ typedef struct _x3d_sizeof_ {
    int  numSegs;
    int  numPolys;
 } Size3D;
+"""
+    new_cml.write(line)
+new_cml.close()
+os.rename(outp, inp)
+
+inp = 'core/unix/src/TUnixSystem.cxx'
+outp = inp+'.new'
+new_cml = open(outp, 'w')
+for line in open(inp):
+    if '#include "TSocket.h"' == line[0:20]:
+        line = """//#include "TSocket.h"
+enum ESockOptions {
+   kSendBuffer,        // size of send buffer
+   kRecvBuffer,        // size of receive buffer
+   kOobInline,         // OOB message inline
+   kKeepAlive,         // keep socket alive
+   kReuseAddr,         // allow reuse of local portion of address 5-tuple
+   kNoDelay,           // send without delay
+   kNoBlock,           // non-blocking I/O
+   kProcessGroup,      // socket process group (used for SIGURG and SIGIO)
+   kAtMark,            // are we at out-of-band mark (read only)
+   kBytesToRead        // get number of bytes to read, FIONREAD (read only)
+};
+
+enum ESendRecvOptions {
+   kDefault,           // default option (= 0)
+   kOob,               // send or receive out-of-band data
+   kPeek,              // peek at incoming message (receive only)
+   kDontBlock          // send/recv as much data as possible without blocking
+};
 """
     new_cml.write(line)
 new_cml.close()
@@ -264,17 +295,21 @@ if DEBUG_TESTBUILD:
 #
 countdown = 0
 
-print('creating src ... ROOT part')
-if not os.path.exists('src'):
-    os.mkdir('src')
-os.chdir('src'); countdown += 1
-if not os.path.exists('backend'):
-    src = os.path.join(os.path.pardir, pkgdir)
-    print('now copying', src)
-    shutil.copytree(src, 'backend')
+print('adding src ... ROOT part')
+for entry in os.listdir(pkgdir):
+    fullp = os.path.join(pkgdir, entry)
+    if entry[0] == '.':
+        continue
+    dest = os.path.join('src', entry)
+    if os.path.isdir(fullp):
+        if not os.path.exists(dest):
+            shutil.copytree(fullp, dest)
+    else:
+        if not os.path.exists(dest):
+            shutil.copy2(fullp, dest)
 
 print('creating src ... cppyy part')
-os.chdir('backend'); countdown += 1
+os.chdir('src'); countdown += 1
 if not os.path.exists('cppyy'):
     os.mkdir('cppyy')
     os.chdir('cppyy'); countdown += 1
@@ -298,8 +333,8 @@ add_dependencies(cppyy_backend CLING)
 
     os.mkdir('src')
     os.chdir('src'); countdown += 1
-    print('pulling cppyy/clingcwrapper.cxx from pypy')
-    base = 'https://bitbucket.org/pypy/pypy/raw/default/pypy/module/cppyy/'
+    print('pulling _cppyy/clingcwrapper.cxx from pypy')
+    base = 'https://bitbucket.org/pypy/pypy/raw/default/pypy/module/_cppyy/'
     for cppyy_file in ['src/callcontext.h', 'include/capi.h', 'src/clingcwrapper.cxx',
                        'include/clingcwrapper.h', 'include/cpp_cppyy.h', 'include/cppyy.h']:
         resp = urllib2.urlopen(base+cppyy_file)
@@ -401,8 +436,8 @@ add_dependencies(cppyy_backend CLING)
 for i in range(countdown):
     os.chdir(os.path.pardir)
 
-# add cppyy module to cmake
-os.chdir('src/backend')
+# add cppyy cling wrapper code to cmake
+os.chdir('src')
 inp = 'CMakeLists.txt'
 print('adding cppyy to cmake')
 outp = inp+'.new'

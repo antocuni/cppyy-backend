@@ -1,7 +1,8 @@
-PyPy cling-support
-==================
+cppyy backend contaning Cling/LLVM
+==================================
 
 ----
 
 Find the documentation here:
-  http://doc.pypy.org/en/latest/cppyy.html
+   http://cppyy.readthedocs.io/
+
